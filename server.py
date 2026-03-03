@@ -199,6 +199,58 @@ async def update_session_tool(
 
 
 @mcp.tool(
+    name="invite_to_team",
+    description="Invite a user to a team by their GitHub handle. Only team owners and admins can invite.",
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "openWorldHint": True,
+    },
+)
+async def invite_to_team_tool(
+    team_id: Annotated[str, Field(description="UUID of the team")],
+    github_handle_to_invite: Annotated[str, Field(description="GitHub handle of the user to invite")],
+    role: Annotated[str, Field(description="Role to assign: 'member' or 'admin'")] = "member",
+) -> str:
+    """Invita a un usuario a un equipo."""
+    github_handle = utils.get_github_handle()
+    return await tools.invite_to_team(team_id, github_handle_to_invite, role, github_handle)
+
+
+@mcp.tool(
+    name="list_my_invitations",
+    description="List all pending team invitations for the current user",
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "openWorldHint": True,
+    },
+)
+async def list_my_invitations_tool() -> str:
+    """Lista las invitaciones pendientes del usuario."""
+    github_handle = utils.get_github_handle()
+    return await tools.list_my_invitations(github_handle)
+
+
+@mcp.tool(
+    name="respond_to_invitation",
+    description="Accept or reject a team invitation",
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "openWorldHint": True,
+    },
+)
+async def respond_to_invitation_tool(
+    invitation_id: Annotated[str, Field(description="UUID of the invitation to respond to")],
+    action: Annotated[str, Field(description="'accept' or 'reject'")],
+) -> str:
+    """Acepta o rechaza una invitación a un equipo."""
+    github_handle = utils.get_github_handle()
+    return await tools.respond_to_invitation(invitation_id, action, github_handle)
+
+
+@mcp.tool(
     name="export_session",
     description=(
         "Export and save the current session. "

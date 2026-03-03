@@ -329,6 +329,142 @@ async def update_session(
     )
 
 
+async def invite_to_team(
+    team_id: str,
+    github_handle_to_invite: str,
+    role: str,
+    github_handle: str,
+) -> str:
+    """
+    Invita a un usuario a un equipo.
+
+    Args:
+        team_id: UUID del equipo
+        github_handle_to_invite: Handle de GitHub del usuario a invitar
+        role: Rol a asignar ('member' o 'admin')
+        github_handle: El handle de GitHub del usuario autenticado
+
+    Returns:
+        String con el resultado de la operación
+    """
+    payload = {"github_handle": github_handle_to_invite, "role": role}
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{API_URL}/teams/{team_id}/invitations",
+            headers=utils.get_api_headers(github_handle),
+            json=payload,
+        )
+
+    if resp.status_code == 400:
+        detail = resp.json().get("detail", "Bad request")
+        raise ToolError(f"Could not send invitation: {detail}")
+    if resp.status_code == 403:
+        detail = resp.json().get("detail", "Access denied")
+        raise ToolError(f"Access denied: {detail}")
+    if resp.status_code == 404:
+        raise ToolError(f"Team '{team_id}' not found.")
+
+    if resp.status_code != 201:
+        detail = resp.json().get("detail") if resp.status_code >= 400 else None
+        utils.handle_api_error(resp.status_code, detail)
+
+    data = resp.json()
+
+    return (
+        f"Invitation sent successfully!\n\n"
+        f"**Invited:** @{github_handle_to_invite}\n"
+        f"**Team:** {data.get('team', {}).get('name', 'N/A')}\n"
+        f"**Role:** {data.get('role', role)}\n"
+        f"**Status:** {data.get('status', 'pending')}"
+    )
+
+
+async def list_my_invitations(github_handle: str) -> str:
+    """
+    Lista las invitaciones pendientes del usuario.
+
+    Args:
+        github_handle: El handle de GitHub del usuario autenticado
+
+    Returns:
+        String formateado con la lista de invitaciones pendientes
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            f"{API_URL}/invitations",
+            headers=utils.get_api_headers(github_handle),
+        )
+
+    if resp.status_code != 200:
+        detail = resp.json().get("detail") if resp.status_code >= 400 else None
+        utils.handle_api_error(resp.status_code, detail)
+
+    invitations = resp.json()
+
+    if not invitations:
+        return "No pending invitations."
+
+    lines: list[str] = [f"## Pending Invitations ({len(invitations)} found)\n"]
+
+    for inv in invitations:
+        team = inv.get("team", {})
+        invited_by = inv.get("invited_by", {})
+
+        lines.append(f"### {team.get('name', 'Unknown Team')}")
+        lines.append(f"- **Invitation ID:** `{inv.get('id', 'N/A')}`")
+        lines.append(f"- **Team ID:** `{team.get('id', 'N/A')}`")
+        lines.append(f"- **Invited by:** @{invited_by.get('github_handle', 'unknown')}")
+        lines.append(f"- **Role:** {inv.get('role', 'member')}")
+        lines.append(f"- **Created:** {inv.get('created_at', 'N/A')}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+async def respond_to_invitation(
+    invitation_id: str,
+    action: str,
+    github_handle: str,
+) -> str:
+    """
+    Acepta o rechaza una invitación a un equipo.
+
+    Args:
+        invitation_id: UUID de la invitación
+        action: 'accept' o 'reject'
+        github_handle: El handle de GitHub del usuario autenticado
+
+    Returns:
+        String con el resultado de la operación
+    """
+    payload = {"action": action}
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{API_URL}/invitations/{invitation_id}/respond",
+            headers=utils.get_api_headers(github_handle),
+            json=payload,
+        )
+
+    if resp.status_code == 400:
+        detail = resp.json().get("detail", "Bad request")
+        raise ToolError(f"Could not respond to invitation: {detail}")
+    if resp.status_code == 403:
+        detail = resp.json().get("detail", "Access denied")
+        raise ToolError(f"Access denied: {detail}")
+    if resp.status_code == 404:
+        raise ToolError(f"Invitation '{invitation_id}' not found.")
+
+    if resp.status_code != 200:
+        detail = resp.json().get("detail") if resp.status_code >= 400 else None
+        utils.handle_api_error(resp.status_code, detail)
+
+    data = resp.json()
+
+    return data.get("message", f"Invitation {action}ed successfully!")
+
+
 async def export_session(
     title: str,
     description: str,
