@@ -329,6 +329,51 @@ async def update_session(
     )
 
 
+async def create_team(
+    name: str,
+    github_handle: str,
+    description: Optional[str] = None,
+) -> str:
+    """
+    Crea un nuevo equipo.
+
+    Args:
+        name: Nombre del equipo
+        github_handle: El handle de GitHub del usuario autenticado
+        description: Descripción del equipo (opcional)
+
+    Returns:
+        String con el resultado de la operación
+    """
+    payload: dict = {"name": name}
+    if description is not None:
+        payload["description"] = description
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{API_URL}/teams",
+            headers=utils.get_api_headers(github_handle),
+            json=payload,
+        )
+
+    if resp.status_code == 400:
+        detail = resp.json().get("detail", "Bad request")
+        raise ToolError(f"Could not create team: {detail}")
+
+    if resp.status_code != 201:
+        detail = resp.json().get("detail") if resp.status_code >= 400 else None
+        utils.handle_api_error(resp.status_code, detail)
+
+    data = resp.json()
+
+    return (
+        f"Team created successfully!\n\n"
+        f"**Name:** {data.get('name', name)}\n"
+        f"**ID:** `{data.get('id', 'N/A')}`\n"
+        f"**Owner:** @{data.get('owner', {}).get('github_handle', github_handle)}"
+    )
+
+
 async def invite_to_team(
     team_id: str,
     github_handle_to_invite: str,

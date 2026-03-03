@@ -199,6 +199,24 @@ async def update_session_tool(
 
 
 @mcp.tool(
+    name="create_team",
+    description="Create a new team. The authenticated user becomes the owner.",
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "openWorldHint": True,
+    },
+)
+async def create_team_tool(
+    name: Annotated[str, Field(description="Name of the team")],
+    description: Annotated[Optional[str], Field(description="Optional description of the team")] = None,
+) -> str:
+    """Crea un nuevo equipo."""
+    github_handle = utils.get_github_handle()
+    return await tools.create_team(name, github_handle, description)
+
+
+@mcp.tool(
     name="invite_to_team",
     description="Invite a user to a team by their GitHub handle. Only team owners and admins can invite.",
     annotations={
