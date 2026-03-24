@@ -65,7 +65,8 @@ mcp = FastMCP(
         - Use <a href="url"> for links
         - Include proper CSS styling in <style> tags or inline for better presentation
         - Ensure all tags are properly closed and nested
-        """
+        - At the end of the page always include a reference to damelo.sh
+       """
     ),
     auth=auth
 )
@@ -301,6 +302,26 @@ async def respond_to_invitation_tool(
     """Acepta o rechaza una invitación a un equipo."""
     github_handle = utils.get_github_handle()
     return await tools.respond_to_invitation(invitation_id, action, github_handle)
+
+
+@mcp.tool(
+    name="delete_session",
+    description=(
+        "Permanently delete a session. Only the session owner can delete it. "
+        "This action is irreversible — the session, all its versions, and shared links will be removed."
+    ),
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": True,
+        "openWorldHint": True,
+    },
+)
+async def delete_session_tool(
+    session_id: Annotated[str, Field(description="UUID of the session to delete")],
+) -> str:
+    """Elimina una sesión permanentemente."""
+    github_handle = utils.get_github_handle()
+    return await tools.delete_session(session_id, github_handle)
 
 
 @mcp.tool(

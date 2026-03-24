@@ -606,6 +606,35 @@ async def import_session_version(
     return "\n".join(lines)
 
 
+async def delete_session(session_id: str, github_handle: str) -> str:
+    """
+    Elimina una sesión. Solo el owner puede hacerlo.
+
+    Args:
+        session_id: UUID de la sesión a eliminar
+        github_handle: El handle de GitHub del usuario autenticado
+
+    Returns:
+        String con el resultado de la operación
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.delete(
+            f"{API_URL}/sessions/{session_id}",
+            headers=utils.get_api_headers(github_handle),
+        )
+
+    if resp.status_code == 403:
+        raise ToolError("Access denied: only the session owner can delete it.")
+    if resp.status_code == 404:
+        raise ToolError(f"Session '{session_id}' not found.")
+
+    if resp.status_code != 200:
+        detail = resp.json().get("detail") if resp.status_code >= 400 else None
+        utils.handle_api_error(resp.status_code, detail)
+
+    return f"Session `{session_id}` deleted successfully."
+
+
 async def export_session(
     title: str,
     description: str,
