@@ -199,6 +199,41 @@ async def update_session_tool(
 
 
 @mcp.tool(
+    name="list_session_versions",
+    description="List all previous versions of a session. Shows version number, title, who changed it, and timestamps.",
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "openWorldHint": True,
+    },
+)
+async def list_session_versions_tool(
+    session_id: Annotated[str, Field(description="UUID of the session")]
+) -> str:
+    """Lista todas las versiones anteriores de una sesión."""
+    github_handle = utils.get_github_handle()
+    return await tools.list_session_versions(session_id, github_handle)
+
+
+@mcp.tool(
+    name="import_session_version",
+    description="Import a specific historical version of a session by its version number. Returns the full session_data of that version.",
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "openWorldHint": True,
+    },
+)
+async def import_session_version_tool(
+    session_id: Annotated[str, Field(description="UUID of the session")],
+    version_number: Annotated[int, Field(description="Version number to import (1, 2, 3...)")],
+) -> str:
+    """Importa una versión histórica de una sesión."""
+    github_handle = utils.get_github_handle()
+    return await tools.import_session_version(session_id, version_number, github_handle)
+
+
+@mcp.tool(
     name="create_team",
     description="Create a new team. The authenticated user becomes the owner.",
     annotations={

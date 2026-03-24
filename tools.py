@@ -510,6 +510,102 @@ async def respond_to_invitation(
     return data.get("message", f"Invitation {action}ed successfully!")
 
 
+async def list_session_versions(session_id: str, github_handle: str) -> str:
+    """
+    Lista todas las versiones anteriores de una sesión.
+
+    Args:
+        session_id: UUID de la sesión
+        github_handle: El handle de GitHub del usuario autenticado
+
+    Returns:
+        String formateado con la lista de versiones
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            f"{API_URL}/sessions/{session_id}/versions",
+            headers=utils.get_api_headers(github_handle),
+        )
+
+    if resp.status_code == 403:
+        raise ToolError("Access denied: you don't have access to this session.")
+    if resp.status_code == 404:
+        raise ToolError(f"Session '{session_id}' not found.")
+
+    if resp.status_code != 200:
+        detail = resp.json().get("detail") if resp.status_code >= 400 else None
+        utils.handle_api_error(resp.status_code, detail)
+
+    versions = resp.json()
+
+    if not versions:
+        return "No previous versions found for this session."
+
+    lines: list[str] = [f"## Session Versions ({len(versions)} found)\n"]
+
+    for v in versions:
+        changed_by = v.get("changed_by", {})
+        lines.append(f"### v{v.get('version_number', '?')} — {v.get('title', 'Untitled')}")
+        if changed_by:
+            lines.append(f"- **Changed by:** @{changed_by.get('github_handle', 'unknown')}")
+        if v.get('description'):
+            lines.append(f"- **Description:** {v['description']}")
+        if v.get('repo'):
+            lines.append(f"- **Repo:** {v['repo']}")
+        if v.get('report_url'):
+            lines.append(f"- **Report:** {v['report_url']}")
+        lines.append(f"- **Created:** {v.get('created_at', 'N/A')}")
+        lines.append(f"- **Archived:** {v.get('archived_at', 'N/A')}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+async def import_session_version(
+    session_id: str,
+    version_number: int,
+    github_handle: str,
+) -> str:
+    """
+    Importa una versión histórica de una sesión por su número de versión.
+
+    Args:
+        session_id: UUID de la sesión
+        version_number: Número de versión a importar
+        github_handle: El handle de GitHub del usuario autenticado
+
+    Returns:
+        String formateado con los datos de la versión
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            f"{API_URL}/sessions/{session_id}/versions/{version_number}",
+            headers=utils.get_api_headers(github_handle),
+        )
+
+    if resp.status_code == 403:
+        raise ToolError("Access denied: you don't have access to this session.")
+    if resp.status_code == 404:
+        raise ToolError(f"Version {version_number} not found for session '{session_id}'.")
+
+    if resp.status_code != 200:
+        detail = resp.json().get("detail") if resp.status_code >= 400 else None
+        utils.handle_api_error(resp.status_code, detail)
+
+    data = resp.json()
+
+    lines: list[str] = []
+    lines.append(f"## {data.get('title', 'Untitled')} (v{data.get('version_number', '?')})")
+    if data.get('description'):
+        lines.append(f"**Description:** {data['description']}")
+    if data.get('report_url'):
+        lines.append(f"**Report URL:** {data['report_url']}")
+    lines.append(f"\n### Session Data\n")
+    lines.append(data.get("session_data", ""))
+
+    return "\n".join(lines)
+
+
 async def export_session(
     title: str,
     description: str,
