@@ -3,6 +3,7 @@ FROM python:3.13
 COPY requirements.txt .
 
 RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install git+https://github.com/PrefectHQ/fastmcp.git@main
 
 COPY . .
 
